@@ -35,7 +35,25 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const User = require('./models/User');
+
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Auto-seed admin user if none exists
+  try {
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.log('No users found in database. Seeding default admin...');
+      await User.create({
+        email: 'muhdrazikkm@gmail.com',
+        password: '12345678'
+      });
+      console.log('Successfully seeded default admin user.');
+    }
+  } catch (err) {
+    console.error('Error auto-seeding user:', err.message);
+  }
+
   runCronJob();
 });
