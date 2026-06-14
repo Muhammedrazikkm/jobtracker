@@ -392,3 +392,12 @@ exports.addCompany = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.resetAllFirstStatus = async (req, res) => {
+  try {
+    const result = await Company.updateMany({}, { $set: { first: true } });
+    res.status(200).json({ message: `Successfully reset 'first' status to true for ${result.modifiedCount} companies.` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
