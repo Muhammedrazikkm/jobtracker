@@ -83,7 +83,8 @@ const runCronJob = () => {
              continue;
           }
 
-          const body = template.body.replace(/\{\{companyName\}\}/g, company.name);
+          let body = template.body.replace(/\{\{companyName\}\}/g, company.name);
+          body = body.replace(/\n/g, '<br />');
 
           let logEntry;
           try {
@@ -181,7 +182,8 @@ const runCronJob = () => {
                 for (const company of recurringCompanies) {
                   if (!company.email || company.email.length === 0) continue;
                   
-                  const body = rTemplate.body.replace(/\{\{companyName\}\}/g, company.name);
+                  let body = rTemplate.body.replace(/\{\{companyName\}\}/g, company.name);
+                  body = body.replace(/\n/g, '<br />');
                   let logEntry;
                   try {
                     logEntry = await EmailLog.create({

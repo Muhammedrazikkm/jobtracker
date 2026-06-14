@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 to fix Railway ENETUNREACH SMTP errors
+
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
