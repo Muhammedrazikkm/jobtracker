@@ -116,6 +116,7 @@ const Status = () => {
                   <th>Email</th>
                   <th>Type</th>
                   <th>Status</th>
+                  <th>Read Receipt</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -137,8 +138,19 @@ const Status = () => {
                     <td>
                       {log.status === 'Success' ? (
                         <span style={{ backgroundColor: '#bbf7d0', color: '#166534', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Success</span>
+                      ) : log.status === 'Pending' ? (
+                        <span style={{ backgroundColor: '#fef08a', color: '#854d0e', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Pending</span>
                       ) : (
                         <span style={{ backgroundColor: '#fecaca', color: '#991b1b', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>Failed</span>
+                      )}
+                    </td>
+                    <td>
+                      {log.opened ? (
+                        <span style={{ color: '#10b981', fontWeight: 'bold' }} title={`Opened at ${new Date(log.openedAt).toLocaleString()}`}>
+                          ✅ Opened
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8' }}>Unread</span>
                       )}
                     </td>
                     <td style={{ color: log.status === 'Failed' ? '#ef4444' : '#94a3b8', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.error || 'Delivered'}>

@@ -10,6 +10,7 @@ const resumeRoutes = require('./routes/resumeRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const emailLogRoutes = require('./routes/emailLogRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
 const runCronJob = require('./cron/emailCron');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -44,6 +45,7 @@ app.use('/api/resume', resumeRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/logs', emailLogRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/track', trackingRoutes);
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

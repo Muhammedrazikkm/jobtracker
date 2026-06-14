@@ -85,15 +85,27 @@ const runCronJob = () => {
 
           const body = template.body.replace(/\{\{companyName\}\}/g, company.name);
 
-          const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: company.email[0],
-            subject: template.subject,
-            html: body,
-            attachments
-          };
-
+          let logEntry;
           try {
+            logEntry = await EmailLog.create({
+              companyName: company.name,
+              companyEmail: company.email[0],
+              type: 'First Time',
+              status: 'Pending' // Initially pending
+            });
+
+            const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+            const trackingPixel = `<img src="${backendUrl}/api/track/${logEntry._id}" width="1" height="1" style="display:none;" />`;
+            const bodyWithTracking = body + trackingPixel;
+
+            const mailOptions = {
+              from: process.env.EMAIL_USER,
+              to: company.email[0],
+              subject: template.subject,
+              html: bodyWithTracking,
+              attachments
+            };
+
             await transporter.sendMail(mailOptions);
             // After sending, set first to false and record date
             company.first = false;
@@ -101,23 +113,25 @@ const runCronJob = () => {
             company.emailCount = (company.emailCount || 0) + 1;
             await company.save();
 
-            await EmailLog.create({
-              companyName: company.name,
-              companyEmail: company.email[0],
-              type: 'First Time',
-              status: 'Success'
-            });
+            logEntry.status = 'Success';
+            await logEntry.save();
 
             console.log(`[SUCCESS] Email sent to: ${company.name} (${company.email[0]})`);
             successCount++;
           } catch (err) {
-            await EmailLog.create({
-              companyName: company.name,
-              companyEmail: company.email[0],
-              type: 'First Time',
-              status: 'Failed',
-              error: err.message
-            });
+            if (logEntry) {
+              logEntry.status = 'Failed';
+              logEntry.error = err.message;
+              await logEntry.save();
+            } else {
+              await EmailLog.create({
+                companyName: company.name,
+                companyEmail: company.email[0],
+                type: 'First Time',
+                status: 'Failed',
+                error: err.message
+              });
+            }
             console.error(`[FAILED] Error sending to ${company.name} (${company.email[0]}):`, err.message);
             failCount++;
           }
@@ -168,38 +182,51 @@ const runCronJob = () => {
                   if (!company.email || company.email.length === 0) continue;
                   
                   const body = rTemplate.body.replace(/\{\{companyName\}\}/g, company.name);
-                  const mailOptions = {
-                    from: process.env.EMAIL_USER,
-                    to: company.email[0],
-                    subject: rTemplate.subject,
-                    html: body,
-                    attachments: rAttachments
-                  };
-
+                  let logEntry;
                   try {
+                    logEntry = await EmailLog.create({
+                      companyName: company.name,
+                      companyEmail: company.email[0],
+                      type: 'Recurring',
+                      status: 'Pending'
+                    });
+
+                    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+                    const trackingPixel = `<img src="${backendUrl}/api/track/${logEntry._id}" width="1" height="1" style="display:none;" />`;
+                    const bodyWithTracking = body + trackingPixel;
+
+                    const mailOptions = {
+                      from: process.env.EMAIL_USER,
+                      to: company.email[0],
+                      subject: rTemplate.subject,
+                      html: bodyWithTracking,
+                      attachments: rAttachments
+                    };
+
                     await transporter.sendMail(mailOptions);
                     company.lastEmailSentAt = new Date();
                     company.emailCount = (company.emailCount || 0) + 1;
                     await company.save();
 
-                    await EmailLog.create({
-                      companyName: company.name,
-                      companyEmail: company.email[0],
-                      type: 'Recurring',
-                      status: 'Success'
-                    });
+                    logEntry.status = 'Success';
+                    await logEntry.save();
 
                     rSuccess++;
                     console.log(`[RECURRING SUCCESS] Sent to: ${company.name}`);
                   } catch (err) {
-                    await EmailLog.create({
-                      companyName: company.name,
-                      companyEmail: company.email[0],
-                      type: 'Recurring',
-                      status: 'Failed',
-                      error: err.message
-                    });
-
+                    if (logEntry) {
+                      logEntry.status = 'Failed';
+                      logEntry.error = err.message;
+                      await logEntry.save();
+                    } else {
+                      await EmailLog.create({
+                        companyName: company.name,
+                        companyEmail: company.email[0],
+                        type: 'Recurring',
+                        status: 'Failed',
+                        error: err.message
+                      });
+                    }
                     rFail++;
                     console.error(`[RECURRING FAILED] ${company.name}:`, err.message);
                   }
