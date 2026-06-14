@@ -89,7 +89,9 @@ exports.uploadSheet = async (req, res) => {
       const address = addressStr.split(',').map(s => s.trim()).filter(Boolean);
       const email = emailStr.split(',').map(s => s.trim()).filter(Boolean);
       const phone = phoneStr.split(',').map(s => s.trim()).filter(Boolean);
-      const first = firstStr.toLowerCase() === 'true' || firstStr.toLowerCase() === 'yes' || firstStr === '1';
+      const first = firstStr 
+        ? (firstStr.toLowerCase() === 'true' || firstStr.toLowerCase() === 'yes' || firstStr === '1')
+        : true;
 
       const existing = await Company.findOne({ name });
       if (existing) {
@@ -99,7 +101,10 @@ exports.uploadSheet = async (req, res) => {
           existing.email = email;
           existing.phone = phone;
           existing.sheetId = sheetId;
-          existing.first = first;
+          // Only overwrite 'first' if it was explicitly defined in the sheet
+          if (firstStr !== '') {
+            existing.first = first;
+          }
           await existing.save();
           duplicatesFound++; // Counting how many were synced
           continue;
@@ -300,14 +305,18 @@ exports.syncSheets = async (req, res) => {
         const address = addressStr.split(',').map(s => s.trim()).filter(Boolean);
         const email = emailStr.split(',').map(s => s.trim()).filter(Boolean);
         const phone = phoneStr.split(',').map(s => s.trim()).filter(Boolean);
-        const first = firstStr.toLowerCase() === 'true' || firstStr.toLowerCase() === 'yes' || firstStr === '1';
+        const first = firstStr 
+          ? (firstStr.toLowerCase() === 'true' || firstStr.toLowerCase() === 'yes' || firstStr === '1')
+          : true;
 
         const existing = await Company.findOne({ name });
         if (existing) {
           existing.address = address;
           existing.email = email;
           existing.phone = phone;
-          existing.first = first;
+          if (firstStr !== '') {
+            existing.first = first;
+          }
           await existing.save();
           syncedCount++;
         } else {
