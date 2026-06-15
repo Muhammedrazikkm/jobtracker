@@ -240,6 +240,121 @@ const runCronJob = () => {
         }
       }
 
+      // ----- QUICK SEND JOB -----
+      const quickSetting = await Settings.findOne({ key: 'quick_send' });
+      if (quickSetting && quickSetting.value && quickSetting.value.status === 'pending') {
+        const qConfig = quickSetting.value;
+        let shouldRunQuick = false;
+        
+        if (!qConfig.time) {
+          shouldRunQuick = true;
+        } else if (qConfig.time === currentTime) {
+          shouldRunQuick = true;
+        }
+
+        if (shouldRunQuick) {
+          console.log(`\n--- QUICK SEND JOB STARTED at ${currentTime} (${tz}) ---`);
+          
+          let qCompanies = [];
+          if (qConfig.emailTo) {
+             const existingCompany = await Company.findOne({ email: qConfig.emailTo });
+             if (existingCompany) {
+                 qCompanies = [existingCompany];
+             } else {
+                 qCompanies = [{
+                     name: qConfig.emailTo.split('@')[0],
+                     email: [qConfig.emailTo],
+                     isManual: true
+                 }];
+             }
+          }
+
+          if (qCompanies.length > 0 && qConfig.templateId) {
+            const qTemplate = await Template.findById(qConfig.templateId);
+            if (qTemplate) {
+              let qAttachments = [];
+              if (qConfig.resumeId) {
+                const qResume = await Resume.findById(qConfig.resumeId);
+                if (qResume) {
+                  const qFilePath = path.join(__dirname, '../../uploads/resumes', qResume.filename);
+                  if (fs.existsSync(qFilePath)) {
+                    qAttachments.push({ filename: qResume.originalName, path: qFilePath });
+                  }
+                }
+              }
+
+              let qSuccess = 0;
+              let qFail = 0;
+
+              for (const company of qCompanies) {
+                if (!company.email || company.email.length === 0) continue;
+                
+                let body = qTemplate.body.replace(/\{\{companyName\}\}/g, company.name);
+                body = body.replace(/\n/g, '<br />');
+                let logEntry;
+                try {
+                  logEntry = await EmailLog.create({
+                    companyName: company.name,
+                    companyEmail: company.email[0],
+                    type: 'Quick Send',
+                    status: 'Pending'
+                  });
+
+                  const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
+                  const trackingPixel = `<img src="${backendUrl}/api/track/${logEntry._id}" width="1" height="1" style="display:none;" />`;
+                  const bodyWithTracking = body + trackingPixel;
+
+                  const mailOptions = {
+                    from: process.env.EMAIL_USER,
+                    to: company.email[0],
+                    subject: qTemplate.subject,
+                    html: bodyWithTracking,
+                    attachments: qAttachments
+                  };
+
+                  await transporter.sendMail(mailOptions);
+                  
+                  if (!company.isManual) {
+                    company.first = false;
+                    company.lastEmailSentAt = new Date();
+                    company.emailCount = (company.emailCount || 0) + 1;
+                    await company.save();
+                  }
+
+                  logEntry.status = 'Success';
+                  await logEntry.save();
+
+                  qSuccess++;
+                  console.log(`[QUICK SEND SUCCESS] Sent to: ${company.name}`);
+                } catch (err) {
+                  if (logEntry) {
+                    logEntry.status = 'Failed';
+                    logEntry.error = err.message;
+                    await logEntry.save();
+                  } else {
+                    await EmailLog.create({
+                      companyName: company.name,
+                      companyEmail: company.email[0],
+                      type: 'Quick Send',
+                      status: 'Failed',
+                      error: err.message
+                    });
+                  }
+                  qFail++;
+                  console.error(`[QUICK SEND FAILED] ${company.name}:`, err.message);
+                }
+              }
+              console.log(`--- QUICK SEND JOB FINISHED (Success: ${qSuccess}, Failed: ${qFail}) ---\n`);
+            }
+          }
+
+          // Mark as completed regardless of if there were companies to send to, to avoid looping
+          quickSetting.value = { ...qConfig, status: 'completed' };
+          quickSetting.markModified('value');
+          await quickSetting.save();
+        }
+      }
+
     } catch (err) {
       console.error('Polling error:', err.message);
     }

@@ -37,6 +37,15 @@ const TimeManagement = () => {
   });
   const [savingRecurring, setSavingRecurring] = useState(false);
 
+  // Quick Send State
+  const [quickSendConfig, setQuickSendConfig] = useState({
+    templateId: '',
+    resumeId: '',
+    time: '',
+    emailTo: ''
+  });
+  const [sendingQuick, setSendingQuick] = useState(false);
+
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   useEffect(() => {
@@ -213,6 +222,43 @@ const TimeManagement = () => {
       toast.error('Failed to reset recurring config');
     } finally {
       setSavingRecurring(false);
+    }
+  };
+
+  const handleQuickSend = async () => {
+    if (!quickSendConfig.templateId) return toast.error('Please select a template');
+    if (!quickSendConfig.emailTo) return toast.error('Please enter an email address to send to');
+    
+    // Check past time if time is provided
+    if (quickSendConfig.time) {
+      const now = new Date();
+      // Assume local time for validation
+      const timeParts = quickSendConfig.time.split(':');
+      const selectedDate = new Date();
+      selectedDate.setHours(parseInt(timeParts[0], 10));
+      selectedDate.setMinutes(parseInt(timeParts[1], 10));
+      selectedDate.setSeconds(0);
+      
+      if (selectedDate < now) {
+         return toast.error('Cannot schedule for a past time today.');
+      }
+    }
+
+    setSendingQuick(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/settings`, {
+        key: 'quick_send',
+        value: {
+          ...quickSendConfig,
+          status: 'pending'
+        }
+      });
+      toast.success(quickSendConfig.time ? `Quick Send scheduled for ${quickSendConfig.time}` : 'Quick Send initiated! Email will be sent in the background.');
+      setQuickSendConfig({ templateId: '', resumeId: '', time: '', emailTo: '' });
+    } catch (err) {
+      toast.error('Failed to initiate quick send');
+    } finally {
+      setSendingQuick(false);
     }
   };
 
@@ -427,6 +473,84 @@ const TimeManagement = () => {
               style={{ flex: 2, marginTop: 0, background: '#10b981' }}
             >
               {savingRecurring ? 'Saving...' : 'Save Recurring Config'}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Quick Send Setup */}
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
+          <h2 className="page-title">Quick Send</h2>
+          <p className="page-subtitle" style={{ marginBottom: 0 }}>Instantly send or schedule a one-time email to a specific address.</p>
+        </div>
+
+        <div style={{ maxWidth: '600px', backgroundColor: '#f8fafc', padding: '2rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          
+          <div className="form-group">
+            <label className="form-label" style={{ color: '#0f172a' }}>Recipient Email *</label>
+            <input 
+              type="email" 
+              placeholder="e.g. hr@company.com"
+              className="form-input"
+              value={quickSendConfig.emailTo}
+              onChange={(e) => setQuickSendConfig({...quickSendConfig, emailTo: e.target.value})}
+              style={{ backgroundColor: '#fff', color: '#0f172a' }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ color: '#0f172a' }}>Select Template *</label>
+            <select 
+              className="form-input" 
+              value={quickSendConfig.templateId} 
+              onChange={(e) => setQuickSendConfig({...quickSendConfig, templateId: e.target.value})}
+              style={{ backgroundColor: '#fff', color: '#0f172a' }}
+            >
+              <option value="" disabled>-- Choose Email Template --</option>
+              {templates.map(t => (
+                <option key={t._id} value={t._id}>{t.name} (Subj: {t.subject})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ color: '#0f172a' }}>Select Resume Attachment (Optional)</label>
+            <select 
+              className="form-input" 
+              value={quickSendConfig.resumeId} 
+              onChange={(e) => setQuickSendConfig({...quickSendConfig, resumeId: e.target.value})}
+              style={{ backgroundColor: '#fff', color: '#0f172a' }}
+            >
+              <option value="">-- No Resume --</option>
+              {resumes.map(r => (
+                <option key={r._id} value={r._id}>{r.title} ({r.originalName})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ color: '#0f172a' }}>Time to Send (Optional - Leave blank to send immediately)</label>
+            <input 
+              type="time" 
+              className="form-input"
+              value={quickSendConfig.time}
+              onChange={(e) => {
+                 setQuickSendConfig({...quickSendConfig, time: e.target.value});
+              }}
+              style={{ backgroundColor: '#fff', color: '#0f172a' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+            <button 
+              className="btn-primary" 
+              onClick={handleQuickSend} 
+              disabled={sendingQuick}
+              style={{ flex: 1, marginTop: 0, background: '#3b82f6' }}
+            >
+              {sendingQuick ? 'Processing...' : (quickSendConfig.time ? 'Schedule Quick Send' : 'Send Immediately')}
             </button>
           </div>
 
