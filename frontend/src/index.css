@@ -12,6 +12,7 @@ body {
   color: #f8fafc;
   min-height: 100vh;
   display: flex;
+  overflow-x: hidden;
 }
 
 #root {
@@ -215,6 +216,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .navbar {
@@ -263,6 +265,8 @@ body {
   padding: 2rem;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 /* --- PAGE STYLES --- */
@@ -271,6 +275,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 2rem;
+  max-width: 100%;
 }
 
 .page-title {
@@ -373,6 +378,8 @@ body {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(15, 23, 42, 0.4);
+  max-width: 100%;
+  width: 100%;
 }
 
 .data-table {
