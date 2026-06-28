@@ -27,18 +27,17 @@ const runCronJob = () => {
   // Use standard JS setInterval instead of node-cron
   // This polls exactly every 1 minute to check the time and send emails if the exact hour/minute matches.
   // It is perfectly safe for VPS, Shared Hosting, and Railway.
+  let isRunning = false;
   setInterval(async () => {
     if (!transporter) return;
+    if (isRunning) return;
+    isRunning = true;
 
     try {
       const timezoneSetting = await Settings.findOne({ key: 'timezone' });
       const tz = timezoneSetting ? timezoneSetting.value : 'UTC';
 
       const emailSetting = await Settings.findOne({ key: 'automated_email_first' });
-      if (!emailSetting || !emailSetting.value) return;
-
-      const { templateId, resumeId, time, days } = emailSetting.value;
-      if (!templateId || !time || !days || days.length === 0) return;
 
       const now = new Date();
       const currentDay = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long' }).format(now);
@@ -48,8 +47,10 @@ const runCronJob = () => {
       if (currentHour === '24') currentHour = '00';
       const currentTime = `${currentHour}:${timeParts[1].padStart(2, '0')}`;
 
-      if (days.includes(currentDay) && currentTime === time) {
-        console.log(`\n--- AUTOMATED EMAIL JOB STARTED at ${currentDay} ${currentTime} (${tz}) ---`);
+      if (emailSetting && emailSetting.value) {
+        const { templateId, resumeId, time, days } = emailSetting.value;
+        if (templateId && time && days && days.length > 0 && days.includes(currentDay) && currentTime === time) {
+          console.log(`\n--- AUTOMATED EMAIL JOB STARTED at ${currentDay} ${currentTime} (${tz}) ---`);
         
         const companies = await Company.find({ first: true });
         console.log(`Found ${companies.length} companies with first=true to email.`);
@@ -144,6 +145,7 @@ const runCronJob = () => {
         }
         
         console.log(`--- AUTOMATED EMAIL JOB FINISHED (Success: ${successCount}, Failed: ${failCount}) ---\n`);
+        }
       }
 
       // ----- RECURRING EMAIL JOB -----
@@ -260,6 +262,10 @@ const runCronJob = () => {
         if (shouldRunQuick) {
           console.log(`\n--- QUICK SEND JOB STARTED at ${currentTime} (${tz}) ---`);
           
+          quickSetting.value = { ...qConfig, status: 'processing' };
+          quickSetting.markModified('value');
+          await quickSetting.save();
+          
           let qCompanies = [];
           if (qConfig.emailTo) {
              const existingCompany = await Company.findOne({ email: qConfig.emailTo });
@@ -284,6 +290,8 @@ const runCronJob = () => {
                   const qFilePath = path.join(__dirname, '../../uploads/resumes', qResume.filename);
                   if (fs.existsSync(qFilePath)) {
                     qAttachments.push({ filename: qResume.originalName, path: qFilePath });
+                  } else {
+                    console.log(`[WARNING] Quick Send Resume file missing from disk: ${qFilePath}`);
                   }
                 }
               }
@@ -362,6 +370,8 @@ const runCronJob = () => {
 
     } catch (err) {
       console.error('Polling error:', err.message);
+    } finally {
+      isRunning = false;
     }
   }, 60 * 1000); // 60 seconds interval
 };
