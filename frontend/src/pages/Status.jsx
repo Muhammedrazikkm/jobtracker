@@ -146,9 +146,16 @@ const Status = () => {
                     </td>
                     <td>
                       {log.opened ? (
-                        <span style={{ color: '#10b981', fontWeight: 'bold' }} title={`Opened at ${new Date(log.openedAt).toLocaleString()}`}>
-                          ✅ Opened
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ color: '#10b981', fontWeight: 'bold' }}>
+                            ✅ Opened
+                          </span>
+                          {log.openedAt && (
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.125rem' }}>
+                              {new Date(log.openedAt).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span style={{ color: '#94a3b8' }}>Unread</span>
                       )}
